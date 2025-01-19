@@ -22,8 +22,15 @@ public class Scene
     }
     */
 
+    /// <summary>
+    /// Add an object to the scene
+    /// </summary>
+    /// <param name="obj">The object that should be added</param>
     public void AddObject(Object obj)
     {
+        if (objects.Contains(obj))
+            throw new Exception("This object has already been added to the scene.");
+
         objects.Add(obj);
         switch (obj)
         {
@@ -31,5 +38,35 @@ public class Scene
                 lights.Add(light);
                 break;
         }
+    }
+    /// <summary>
+    /// Remove object from scene.
+    /// </summary>
+    /// <param name="obj">The object that needs to be removed.</param>
+    public void RemoveObject(Object obj)
+    {
+        if (!lights.Contains(obj))
+            throw new Exception("There is no such object on the scene.");
+
+        objects.Remove(obj);
+        switch (obj)
+        {
+            case Light light:
+                lights.Remove(light);
+                break;
+        }
+    }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="index"></param>
+    /// <exception cref="ArgumentOutOfRangeException"></exception>
+    public void RemoveObject(int index)
+    {
+        if (index < 0 || index >= objects.Count)
+            throw new ArgumentOutOfRangeException("index");
+
+        RemoveObject(objects[index]);
     }
 }

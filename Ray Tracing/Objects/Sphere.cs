@@ -10,7 +10,7 @@ public class Sphere(float radius) : Object, IRenderable
     {
         result = default;
 
-        Vector3 v = ray.Origin - Position;
+        Vector3 v = ray.Origin - Transform.Position;
         float b = 2 * Vector3.Dot(Vector3.Normalize(ray.Direction), v);
         float c = Vector3.Dot(v, v)- Radius * Radius;
         float d = b * b - 4 * c;
@@ -27,7 +27,7 @@ public class Sphere(float radius) : Object, IRenderable
             return false;
 
         result.Point = ray.Origin + Vector3.Normalize(ray.Direction) * ((t0 < t1 && t0 >= 0) ? t0 : t1);
-        result.Normal = Vector3.Normalize(result.Point - Position);
+        result.Normal = Vector3.Normalize(result.Point - Transform.Position);
         result.Material = Material;
         result.Object = this;
         return true;
