@@ -1,5 +1,6 @@
 ﻿using Ray_Tracing.Objects;
 using System.Collections.ObjectModel;
+using System.Diagnostics.Contracts;
 
 namespace Ray_Tracing;
 
@@ -69,4 +70,5 @@ public class Scene
 
         RemoveObject(objects[index]);
     }
+
 }

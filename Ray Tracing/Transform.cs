@@ -1,6 +1,6 @@
 ﻿namespace Ray_Tracing;
 
-public class Transform
+public struct Transform()
 {
     public Vector3 Forward => Vector3.Transform(Vector3.UnitZ, Rotation);
     public Vector3 Right => Vector3.Transform(Vector3.UnitX, Rotation);
@@ -20,4 +20,6 @@ public class Transform
     /// </summary>
     /// <param name="euler">Euler angles</param>
     public void Rotate(Vector3 euler) => Rotation *= Matrix4x4.CreateFromYawPitchRoll(euler.Y * MathF.PI / 180, euler.X * MathF.PI / 180, euler.Z * MathF.PI / 180);
+
+    public void ModifyPositionByMatrix(Matrix4x4 matrix) => Position = Vector3.Transform(Position, matrix);
 }

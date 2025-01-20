@@ -26,7 +26,7 @@ public class Sphere(float radius) : Object, IRenderable
         if (t0 < 0 && t1 < 0)
             return false;
 
-        result.Point = ray.Origin + Vector3.Normalize(ray.Direction) * ((t0 < t1 && t0 >= 0) ? t0 : t1);
+        result.Point = ray.PointByTime((t0 < t1 && t0 >= 0) ? t0 : t1);
         result.Normal = Vector3.Normalize(result.Point - Transform.Position);
         result.Material = Material;
         result.Object = this;
