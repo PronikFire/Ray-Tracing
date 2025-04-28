@@ -3,17 +3,8 @@
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="SFML.Net" Version="2.6.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Using Include="SFML.Graphics" />
-    <Using Include="System.Numerics" />
-  </ItemGroup>
 
 </Project>

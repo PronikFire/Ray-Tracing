@@ -1,125 +1,83 @@
-﻿using SFML.System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
+using System;
+using System.Drawing;
+using System.Numerics;
+using System.Threading;
 
 namespace Ray_Tracing.Objects;
 
-public class Camera(float fov, Vector2u size, Scene scene) : Object
+public class Camera(float fov, Size resolution, Scene scene) : Object
 {
     public float Fov
     {
         get => fov;
         set => fov = MathF.Max(value, 0);
     }
-    public Vector2u Size
+    public Size Resolution
     {
-        get => size;
+        get => resolution;
         set
         {
-            size = value;
-            pixels = new Color[value.X, value.Y];
+            resolution = value;
         }
     }
-    public Scene Scene = scene;
+
+    public Scene scene = scene;
+
     public int MaxReflections
     {
         get => maxReflections;
-        set => maxReflections = Math.Min(value, 0);
+        set => maxReflections = Math.Max(value, 0);
     }
+    public Color Background = Color.FromArgb(120, 120, 120);
 
     private float fov = MathF.Max(fov, 0);
-    private Vector2u size = size;
+    private Size resolution = resolution;
     private int maxReflections = 2;
 
-    private Color[,] pixels = new Color[size.X, size.Y];
-
-
-    public async Task<Color[,]> GetImageAsync()
+    public Color GetPixel(int x, int y)
     {
-        for (uint x = 0; x < size.X; x++)
+        if (x >= resolution.Width || y >= resolution.Height)
+            throw new ArgumentException();
+
+        Quaternion rayRotation = Quaternion.CreateFromAxisAngle(transform.Up, (x / (float)resolution.Width - 0.5f) * Fov * (MathF.PI / 180));
+        rayRotation = Quaternion.Concatenate(Quaternion.CreateFromAxisAngle(transform.Right, (y / (float)resolution.Height - 0.5f) * Fov * (MathF.PI / 180)), rayRotation);
+        
+        if (!scene.Raycast(transform.Position, Vector3.Transform(transform.Forward, rayRotation), out var result))
+            return Background;
+
+
+        Color lightSum = Color.Black;
+        foreach (Object @object in scene.Objects)
         {
-            Task[] rays = new Task[size.Y];
-            for (uint y = 0; y < size.Y; y++)
-            {
-                rays[y] = Raycast(x, y);
-            }
-            await Task.WhenAll(rays);
-        }
+            if (@object is not Light light)
+                continue;
 
-        return pixels;
-    }
-
-    public Color[,] GetImage()
-    {
-        GetImageAsync().Wait();
-        return pixels;
-    }
-
-    private async Task Raycast(uint x, uint y)
-    {
-        Matrix4x4 rayRotation = Matrix4x4.CreateFromAxisAngle(Vector3.UnitY, (x / (float)size.X - 0.5f) * Fov * (MathF.PI / 180)) * Matrix4x4.CreateFromAxisAngle(Vector3.UnitX, (y / (float)size.Y - 0.5f) * Fov * (MathF.PI / 180));
-        Ray ray = new(Transform.Position, Vector3.Transform(Vector3.UnitZ, rayRotation * Transform.Rotation));
-
-        IntersectionResult result;
-
-        {
-            IntersectionResult? currentResult = null;
-
-            foreach (Object obj in Scene.Objects)
-            {
-                if (obj is not IRenderable renderable)
-                    continue;
-
-                if (!renderable.Intersection(ray, out IntersectionResult newResult))
-                    continue;
-
-                if (currentResult != null && Vector3.Distance(Transform.Position, newResult.Point) > Vector3.Distance(Transform.Position, currentResult.Value.Point))
-                    continue;
-
-                currentResult = newResult;
-            }
-
-            if (currentResult == null)
-            {
-                pixels[x, y] = Scene.Background;
-                return;
-            }
-            result = currentResult.Value;
-        }
-
-        Color lightSum = Scene.Background;
-        foreach (Light light in Scene.Lights)
-        {
             if (light.Intensity == 0)
                 continue;
 
-            Vector3 localLightPos = light.Transform.Position - result.Point;
+            Vector3 localLightPos = light.transform.Position - result.point;
 
-            float brightnessDot = Vector3.Dot(Vector3.Normalize(result.Normal), Vector3.Normalize(localLightPos));
+            float brightnessDot = Vector3.Dot(Vector3.Normalize(result.normal), Vector3.Normalize(localLightPos));
             if (brightnessDot <= 0)
                 continue;
 
             if (localLightPos.Length() == 0)
                 continue;
 
-            byte brightness = (byte)(MathF.Min(light.Intensity / localLightPos.Length(), 1) * 255 * brightnessDot);
-            foreach (var obj in Scene.Objects)
-            {
-                if (obj == result.Object)
-                    continue;
+            float brightness = light.Intensity / localLightPos.Length();
 
-                if (obj is not IRenderable renderable)
-                    continue;
-
-                if (!renderable.Intersection(new(result.Point, Vector3.Normalize(localLightPos))))
-                    continue;
-
+            if (scene.Raycast(result.point, Vector3.Normalize(localLightPos), out var rayToLightResult, [result.meshRender]))
                 brightness = 0;
-                break;
-            }
-            lightSum += light.Color * new Color(brightness, brightness, brightness);
-        }
-        byte dCamera = (byte)(Vector3.Dot(Vector3.Normalize(result.Normal), Vector3.Normalize(Transform.Position - result.Object.Transform.Position)) * 127 + 127);
 
-        pixels[x, y] = result.Material.Color * lightSum * new Color(dCamera, dCamera, dCamera);
+            lightSum = Color.FromArgb(Math.Min(lightSum.R + (int)(light.Color.R * brightness), 255), Math.Min(lightSum.G + (int)(light.Color.G * brightness), 255), Math.Min(lightSum.B + (int)(light.Color.B * brightness), 255));
+        }
+
+        if (lightSum == Color.Black)
+            return Color.Black;
+
+        float dCamera = (Vector3.Dot(Vector3.Normalize(result.normal), Vector3.Normalize(transform.Position - result.meshRender.transform.Position)) + 1) / 2;
+
+        return Color.FromArgb((int)Math.Min((result.meshRender.Material.Color.R + lightSum.R) * dCamera, 255), (int)Math.Min((result.meshRender.Material.Color.G + lightSum.G) * dCamera, 255), (int)Math.Min((result.meshRender.Material.Color.B + lightSum.B) * dCamera, 255));
     }
 }

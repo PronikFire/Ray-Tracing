@@ -1,100 +1,231 @@
 ﻿using Ray_Tracing.Objects;
-using SFML.Graphics;
 using System.Numerics;
 using Ray_Tracing;
 using System.Threading.Tasks;
 using System;
-using SFML.System;
-using SFML.Window;
-using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Drawing;
+using System.ComponentModel;
+using System.Drawing.Imaging;
 
 namespace Test;
 
-public class Program
+public static partial class Program
 {
-    private static readonly RenderWindow window = new(new(600, 600), "Ray Tracing");
+    private static readonly Size Resolution = new(600, 600);
     private static readonly Scene scene = new();
-    private static readonly Camera camera = new(60, window.Size, scene);
-    private static Image canvas = new (window.Size.X, window.Size.Y, Color.Black);
-    private static readonly Matrix4x4 rotationDelta = Matrix4x4.CreateFromAxisAngle(Vector3.UnitY, 1f * (MathF.PI / 180));
+    private static readonly Camera camera = new(60, new(Resolution.Width, Resolution.Height), scene);
+    private static readonly Quaternion rotationDelta = Quaternion.CreateFromAxisAngle(Vector3.UnitY, 1f * (MathF.PI / 180));
     private static readonly Light light = new();
-    private const float cameraSensitivity = 0.25f;
-    private const float cameraSpeed = 1f;
+    private static readonly uint[] pixelBuffer = new uint[Resolution.Width * Resolution.Height];
 
-    public static void Main()
-    { 
-        Texture texture = new (canvas) { Repeated = false, Smooth = false };
-        Sprite sprite = new (texture);
-        window.Closed += (object? o, EventArgs a) => window.Close();
+    private static IntPtr hWnd;
+    private static IntPtr hdc;
 
-
-        camera.Transform.Position = new Vector3(0, 50, -100);
-
-        Sphere sphere1 = new(25);
-        sphere1.Transform.Position = Vector3.UnitY * sphere1.Radius;
-        sphere1.Material.Color = Color.Yellow;
-        scene.AddObject(sphere1);
-
-        Sphere sphere2 = new(7.5f);
-        sphere2.Material.Color = Color.Green;
-        sphere2.Transform.Position = new Vector3(50, sphere1.Transform.Position.Y, 0);
-        scene.AddObject(sphere2);
-
-        light.Transform.Position = new Vector3(75, sphere1.Transform.Position.Y + 50, 0);
-        light.Intensity = 50;
-        scene.AddObject(light);
-
-        Ray_Tracing.Objects.Plane plane = new();
-        scene.AddObject(plane);
-
-
-        window.SetMouseCursorVisible(false);
-        window.MouseMoved += OnMouseMove;
-
-        Task updateTask = Update();
-
-        while (window.IsOpen)
+    private static nint WndProc(nint hWnd, uint msg, nint wParam, nint lParam)
+    {
+        switch (msg)
         {
-            window.DispatchEvents();
-            window.Clear();
-
-            updateTask.Wait();
-            texture.Update(canvas);
-            window.Draw(sprite);
-
-            updateTask = Update();
-
-            window.Display();
+            case 0x0010: // WM_CLOSE
+                PostQuitMessage(0);
+                return 0;
         }
+        return DefWindowProcW(hWnd, msg, wParam, lParam);
     }
 
-    private static void OnMouseMove(object? o, MouseMoveEventArgs a)
+    //Bless DeepSeek for existing. I would feel so bad writing this...
+    //Although I still had to fix his mistakes😕😴
+    public static void Main()
     {
-        if (!window.HasFocus())
-            return;
+        #region WindowCreate
+        if (!GetModuleHandleExW(0, null, out var phModule))
+            throw new Win32Exception(Marshal.GetLastSystemError());
 
-        camera.Transform.Rotate(Vector3.UnitY, a.X - window.Size.X / 2);
-        camera.Transform.Rotate(camera.Transform.Right, a.Y - window.Size.Y / 2);
-        Mouse.SetPosition((Vector2i)window.Size / 2, window);
+        WNDCLASSEX wndClass = new WNDCLASSEX
+        {
+            cbSize = (uint)Marshal.SizeOf(typeof(WNDCLASSEX)),
+            style = 0x0002 | 0x0001, // CS_HREDRAW | CS_VREDRAW
+            lpfnWndProc = Marshal.GetFunctionPointerForDelegate((WndProcDelegate)WndProc),
+            cbClsExtra = 0,
+            cbWndExtra = 0,
+            hInstance = phModule,
+            hIcon = nint.Zero,
+            hCursor = nint.Zero,
+            hbrBackground = nint.Zero,
+            lpszMenuName = null,
+            lpszClassName = "PixelWindowClass",
+            hIconSm = nint.Zero
+        };
+
+        if (RegisterClassExW(ref wndClass) == 0)
+            throw new Win32Exception(Marshal.GetLastSystemError());
+
+        hWnd = CreateWindowExW(
+            0,
+            "PixelWindowClass",
+            "Ray Tracing",
+            0x00CF0000 | 0x10000000, // WS_OVERLAPPEDWINDOW | WS_VISIBLE
+            100, 100,
+            Resolution.Width, Resolution.Height,
+            IntPtr.Zero,
+            IntPtr.Zero,
+            phModule,
+            IntPtr.Zero);
+
+        if (hWnd == IntPtr.Zero)
+            throw new Win32Exception(Marshal.GetLastSystemError());
+
+        ShowWindow(hWnd, 5); // SW_SHOW
+        UpdateWindow(hWnd);
+        hdc = GetDC(hWnd);
+        #endregion
+
+        camera.transform.Position = new Vector3(0, 0, -10);
+
+        light.transform.Position = new Vector3(3, 3, -3);
+        light.Intensity = 2f;
+        scene.Objects.Add(light);
+
+        MeshRender cube = new(Mesh.Cube);
+        cube.Material.Color = Color.RebeccaPurple;
+        scene.Objects.Add(cube);
+
+        MSG msg = new();
+        while (GetMessageW(ref msg, IntPtr.Zero, 0, 0))
+        {
+            TranslateMessage(ref msg);
+            DispatchMessageW(ref msg);
+
+            Parallel.For(0, Resolution.Height - 1, SetPixelsRow);
+
+            unsafe
+            {
+                fixed (uint* ptr = pixelBuffer)
+                {
+                    using var bitmap = new Bitmap(Resolution.Width, Resolution.Height, Resolution.Width * 4,
+                        PixelFormat.Format32bppRgb, (IntPtr)ptr);
+                    using var graphics = Graphics.FromHwnd(hWnd);
+                    graphics.DrawImage(bitmap, 0, 0);
+                }
+            }
+
+            //light.transform.Position = Vector3.Transform(light.transform.Position, rotationDelta);
+            camera.transform.Rotation = Quaternion.Concatenate(camera.transform.Rotation, rotationDelta);
+            camera.transform.Position = Vector3.Transform(camera.transform.Position, rotationDelta);
+        }
+
+        if (hdc != IntPtr.Zero)
+        {
+            ReleaseDC(hWnd, hdc);
+            hdc = IntPtr.Zero;
+        }
+
+        UnregisterClassW("PixelWindowClass", phModule);
     }
 
-    private static async Task Update()
+    private static void SetPixelsRow(int y)
     {
-        canvas.Dispose();
-        canvas = new Image(await camera.GetImageAsync());
-
-        light.Transform.ModifyPositionByMatrix(rotationDelta);
-
-        Vector3 dPos = Vector3.Zero;
-        if  (Keyboard.IsKeyPressed(Keyboard.Key.W) != Keyboard.IsKeyPressed(Keyboard.Key.S))
-            dPos += camera.Transform.Forward * (Keyboard.IsKeyPressed(Keyboard.Key.W) ? 1 : -1);
-        if (Keyboard.IsKeyPressed(Keyboard.Key.D) != Keyboard.IsKeyPressed(Keyboard.Key.A))
-            dPos += camera.Transform.Right * (Keyboard.IsKeyPressed(Keyboard.Key.D) ? 1 : -1);
-        if (Keyboard.IsKeyPressed(Keyboard.Key.Space) != Keyboard.IsKeyPressed(Keyboard.Key.LShift))
-            dPos += Vector3.UnitY * (Keyboard.IsKeyPressed(Keyboard.Key.Space) ? 1 : -1);
-        dPos *= cameraSpeed;
-        camera.Transform.Position += dPos;
-        //camera.Rotation = camera.Rotation * rotationDelta;
-        //camera.Position = Vector3.Transform(camera.Position, rotationDelta);
+        for (int x = 0; x < Resolution.Width; x++)
+            pixelBuffer[y * Resolution.Width + x] = (uint)camera.GetPixel(x, y).ToArgb();
     }
+
+    private delegate nint WndProcDelegate(nint hWnd, uint msg, nint wParam, nint lParam);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public struct WNDCLASSEX
+    {
+        public uint cbSize;
+        public uint style;
+        public nint lpfnWndProc;
+        public int cbClsExtra;
+        public int cbWndExtra;
+        public nint hInstance;
+        public nint hIcon;
+        public nint hCursor;
+        public nint hbrBackground;
+        [MarshalAs(UnmanagedType.LPWStr)]
+        public string? lpszMenuName;
+        [MarshalAs(UnmanagedType.LPWStr)]
+        public string? lpszClassName;
+        public nint hIconSm;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MSG
+    {
+        public IntPtr hwnd;
+        public uint message;
+        public IntPtr wParam;
+        public IntPtr lParam;
+        public uint time;
+        public POINT pt;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINT
+    {
+        public int X;
+        public int Y;
+    }
+
+    [LibraryImport("user32")]
+    private static partial nint CreateWindowExW(
+        uint dwExStyle,
+        [MarshalAs(UnmanagedType.LPWStr)] string lpClassName,
+        [MarshalAs(UnmanagedType.LPWStr)] string lpWindowName,
+        uint dwStyle,
+        int x,
+        int y,
+        int nWidth,
+        int nHeight,
+        nint hWndParent,
+        nint hMenu,
+        nint hInstance,
+        nint lpParam);
+
+    [LibraryImport("user32")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ShowWindow(nint hWnd, int nCmdShow);
+
+    [LibraryImport("user32")]
+    private static partial nint GetDC(nint hWnd);
+
+    [LibraryImport("user32")]
+    private static partial int ReleaseDC(nint hWnd, nint hDC);
+
+    [LibraryImport("gdi32")]
+    private static partial uint SetPixel(nint hdc, int x, int y, uint color);
+
+    [DllImport("user32", SetLastError = true)]
+    private static extern ushort RegisterClassExW(ref WNDCLASSEX wndClass);
+
+    [LibraryImport("user32", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool UnregisterClassW([MarshalAs(UnmanagedType.LPWStr)] string lpClassName, nint hInstance);
+
+    [LibraryImport("kernel32")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetModuleHandleExW(uint dwFlags, [MarshalAs(UnmanagedType.LPWStr)] string? lpModuleName, out nint phModule);
+
+    [LibraryImport("user32")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool UpdateWindow(nint hWnd);
+
+    [LibraryImport("user32")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetMessageW(ref MSG lpMsg, nint hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
+
+    [LibraryImport("user32")]
+    private static partial nint DispatchMessageW(ref MSG lpMsg);
+
+    [LibraryImport("user32")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool TranslateMessage(ref MSG lpMsg);
+
+    [LibraryImport("user32")]
+    private static partial nint DefWindowProcW(nint hWnd, uint msg, nint wParam, nint lParam);
+
+    [LibraryImport("user32")]
+    private static partial nint PostQuitMessage(int nExitCode);
 }
+

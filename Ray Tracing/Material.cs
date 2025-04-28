@@ -1,13 +1,10 @@
-﻿namespace Ray_Tracing;
+﻿using System;
+using System.Drawing;
+
+namespace Ray_Tracing;
 
 public class Material()
 {
-    public Material(Material material) : this()
-    {
-        Color = material.Color;
-        glowIntensity = material.GlowIntensity;
-    }
-
     public Color Color = Color.White;
     public float GlowIntensity
     {

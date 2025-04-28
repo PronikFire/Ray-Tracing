@@ -2,5 +2,5 @@
 
 public abstract class Object
 {
-    public Transform Transform = new Transform();
+    public Transform transform = new();
 }
