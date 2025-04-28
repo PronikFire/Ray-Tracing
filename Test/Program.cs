@@ -91,10 +91,13 @@ public static partial class Program
         scene.Objects.Add(cube);
 
         MSG msg = new();
-        while (GetMessageW(ref msg, IntPtr.Zero, 0, 0))
+
+        //For some reason it behaves strangely, blocks the stream and because of this slows down the rendering.
+        //I need to figure it out but I'm going to sleep😴💤💤💤💤
+        while (/*GetMessageW(ref msg, IntPtr.Zero, 0, 0)*/ true)
         {
-            TranslateMessage(ref msg);
-            DispatchMessageW(ref msg);
+            //TranslateMessage(ref msg);
+            //DispatchMessageW(ref msg);
 
             Parallel.For(0, Resolution.Height - 1, SetPixelsRow);
 
