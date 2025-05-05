@@ -1,22 +1,20 @@
-﻿using System;
-using System.Drawing;
+﻿using System.Drawing;
+using System.Numerics;
 
 namespace Ray_Tracing;
 
 public class Material()
 {
-    public Color Color = Color.White;
-    public float GlowIntensity
-    {
-        get => glowIntensity;
-        set => glowIntensity = MathF.Max(value, 0);
-    }
-    public float Specularity
-    {
-        get => specularity;
-        set => specularity = Math.Clamp(value, 0, 1);
-    }
+    public Color color = Color.White;
 
-    private float glowIntensity = 0;
-    private float specularity = 0;
+    protected virtual Color OnCalculate(Vector3 point, Vector3 ray, Vector3 normal, uint raysLeft) => color;
+
+    public Color CalculateColor(Vector3 point, Vector3 ray, Vector3 normal, uint raysLeft)
+    {
+        if (raysLeft == 0)
+            return Color.Black;
+
+        raysLeft--;
+        return OnCalculate(point, ray, normal, raysLeft);
+    }
 }

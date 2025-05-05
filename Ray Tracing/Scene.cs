@@ -1,7 +1,5 @@
 ﻿using Ray_Tracing.Objects;
-using System.Collections.ObjectModel;
 using System;
-using System.Diagnostics.Contracts;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Linq;
@@ -16,7 +14,7 @@ public class Scene
     {
         raycastResult = default;
 
-        bool firstWasFind = false;
+        bool hasResult = false;
 
         foreach (Object obj in Objects)
         {
@@ -29,16 +27,16 @@ public class Scene
             if (!meshRender.Intersection(origin, direction, out var result))
                 continue;
 
-            if (firstWasFind && Vector3.Distance(origin, raycastResult.point) < Vector3.Distance(origin, result.point))
+            if (hasResult && Vector3.Distance(origin, raycastResult.point) < Vector3.Distance(origin, result.point))
                 continue;
 
             raycastResult.point = result.point;
             raycastResult.normal = result.normal;
             raycastResult.meshRender = meshRender;
-            firstWasFind = true;
+            hasResult = true;
         }
 
-        return firstWasFind;
+        return hasResult;
     }
 
     public struct RaycastResult

@@ -77,50 +77,57 @@ public static partial class Program
 
         ShowWindow(hWnd, 5); // SW_SHOW
         UpdateWindow(hWnd);
-        hdc = GetDC(hWnd);
         #endregion
 
-        camera.transform.Position = new Vector3(0, 0, -10);
+        camera.transform.position = new Vector3(0, 2, -10);
+        camera.transform.rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, 10 * MathF.PI / 180);
+        //camera.transform.Rotation = Quaternion.CreateFromRotationMatrix(Matrix4x4.CreateLookAt(camera.transform.Position, Vector3.Zero, camera.transform.Up));
 
-        light.transform.Position = new Vector3(3, 3, -3);
-        light.Intensity = 2f;
+        light.transform.position = new Vector3(3, 3, -3);
+        light.Intensity = 5f;
+        //light.Color = Color.Red;
         scene.Objects.Add(light);
 
         MeshRender cube = new(Mesh.Cube);
-        cube.Material.Color = Color.RebeccaPurple;
+        cube.material.color = Color.RebeccaPurple;
         scene.Objects.Add(cube);
+
+        MeshRender plane = new(Mesh.Plane);
+        plane.transform.position = new Vector3(0, -0.5f, 0);
+        plane.transform.scale *= 5;
+        scene.Objects.Add(plane);
 
         MSG msg = new();
 
         //For some reason it behaves strangely, blocks the stream and because of this slows down the rendering.
         //I need to figure it out but I'm going to sleep😴💤💤💤💤
-        while (/*GetMessageW(ref msg, IntPtr.Zero, 0, 0)*/ true)
+        while (GetMessageW(ref msg, IntPtr.Zero, 0, 0))
         {
             //TranslateMessage(ref msg);
             //DispatchMessageW(ref msg);
 
-            Parallel.For(0, Resolution.Height - 1, SetPixelsRow);
+            Parallel.For(0, Resolution.Height - 1, 
+                y => Parallel.For(0, Resolution.Width - 1, x => pixelBuffer[y * Resolution.Width + x] = (uint)camera.GetPixel(x, y).ToArgb()));
+
+            /*for (int y = 0; y < Resolution.Height; y++)
+                SetPixelsRow(y);*/
 
             unsafe
             {
                 fixed (uint* ptr = pixelBuffer)
                 {
+#pragma warning disable CA1416
                     using var bitmap = new Bitmap(Resolution.Width, Resolution.Height, Resolution.Width * 4,
                         PixelFormat.Format32bppRgb, (IntPtr)ptr);
                     using var graphics = Graphics.FromHwnd(hWnd);
                     graphics.DrawImage(bitmap, 0, 0);
+#pragma warning restore CA1416
                 }
             }
 
             //light.transform.Position = Vector3.Transform(light.transform.Position, rotationDelta);
-            camera.transform.Rotation = Quaternion.Concatenate(camera.transform.Rotation, rotationDelta);
-            camera.transform.Position = Vector3.Transform(camera.transform.Position, rotationDelta);
-        }
-
-        if (hdc != IntPtr.Zero)
-        {
-            ReleaseDC(hWnd, hdc);
-            hdc = IntPtr.Zero;
+            camera.transform.rotation = Quaternion.Concatenate(camera.transform.rotation, rotationDelta);
+            camera.transform.position = Vector3.Transform(camera.transform.position, rotationDelta);
         }
 
         UnregisterClassW("PixelWindowClass", phModule);
@@ -128,9 +135,10 @@ public static partial class Program
 
     private static void SetPixelsRow(int y)
     {
-        for (int x = 0; x < Resolution.Width; x++)
-            pixelBuffer[y * Resolution.Width + x] = (uint)camera.GetPixel(x, y).ToArgb();
+        ;
     }
+
+    #region WinAPI
 
     private delegate nint WndProcDelegate(nint hWnd, uint msg, nint wParam, nint lParam);
 
@@ -156,10 +164,10 @@ public static partial class Program
     [StructLayout(LayoutKind.Sequential)]
     public struct MSG
     {
-        public IntPtr hwnd;
+        public nint hwnd;
         public uint message;
-        public IntPtr wParam;
-        public IntPtr lParam;
+        public nint wParam;
+        public nint lParam;
         public uint time;
         public POINT pt;
     }
@@ -190,16 +198,8 @@ public static partial class Program
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool ShowWindow(nint hWnd, int nCmdShow);
 
-    [LibraryImport("user32")]
-    private static partial nint GetDC(nint hWnd);
-
-    [LibraryImport("user32")]
-    private static partial int ReleaseDC(nint hWnd, nint hDC);
-
-    [LibraryImport("gdi32")]
-    private static partial uint SetPixel(nint hdc, int x, int y, uint color);
-
     [DllImport("user32", SetLastError = true)]
+    //I fucked this shit Library Import doesn't want to be friends at all
     private static extern ushort RegisterClassExW(ref WNDCLASSEX wndClass);
 
     [LibraryImport("user32", SetLastError = true)]
@@ -230,5 +230,6 @@ public static partial class Program
 
     [LibraryImport("user32")]
     private static partial nint PostQuitMessage(int nExitCode);
+    #endregion
 }
 

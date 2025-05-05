@@ -1,15 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Numerics;
 
 namespace Ray_Tracing.Objects;
 
 public class MeshRender(Mesh mesh) : Object
 {
-    public Material Material = new();
+    public Material material = new();
 
     public Mesh mesh = mesh;
 
@@ -19,13 +14,13 @@ public class MeshRender(Mesh mesh) : Object
 
         direction = Vector3.Normalize(direction);
 
-        bool firstWasFind = false;
+        bool hasResult = false;
 
         for (int i = 0; i < mesh.Tringles.Length; i += 3)
         {
-            Vector3 v0 = mesh.Vertices[mesh.Tringles[i]] * transform.Scale;
-            Vector3 v1 = mesh.Vertices[mesh.Tringles[i + 1]] * transform.Scale;
-            Vector3 v2 = mesh.Vertices[mesh.Tringles[i + 2]] * transform.Scale;
+            Vector3 v0 = mesh.Vertices[mesh.Tringles[i]] * transform.scale;
+            Vector3 v1 = mesh.Vertices[mesh.Tringles[i + 1]] * transform.scale;
+            Vector3 v2 = mesh.Vertices[mesh.Tringles[i + 2]] * transform.scale;
 
             Vector3 e1 = v1 - v0;
             Vector3 e2 = v2 - v0;
@@ -37,7 +32,7 @@ public class MeshRender(Mesh mesh) : Object
                 continue;
 
             float inv_det = 1 / det;
-            Vector3 tvec = origin - transform.Position - v0;
+            Vector3 tvec = origin - transform.position - v0;
             float u = Vector3.Dot(tvec, pvec) * inv_det;
             if (u < 0 || u > 1)
                 continue;
@@ -49,15 +44,18 @@ public class MeshRender(Mesh mesh) : Object
 
             float t = Vector3.Dot(e2, qvec) * inv_det;
 
-            if (firstWasFind && Vector3.Distance(origin, result.point) < t)
+            if (t < 0)
+                continue;
+
+            if (hasResult && Vector3.Distance(origin, result.point) < t)
                 continue;
 
             result.point = origin + t * direction;
             result.normal = Vector3.Normalize(Vector3.Cross(e1, e2));
-            firstWasFind = true;
+            hasResult = true;
         }
 
-        return firstWasFind;
+        return hasResult;
     }
 
     public struct IntersectionResult

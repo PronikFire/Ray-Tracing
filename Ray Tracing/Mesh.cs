@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Numerics;
 
 namespace Ray_Tracing;
@@ -28,15 +24,15 @@ public class Mesh
 
     public readonly static Mesh Plane = new(
         [
-        new Vector3(1, 0, 1),
-        new Vector3(-1, 0, 1),
-        new Vector3(-1, 0, -1),
-        new Vector3(1, 0, -1)
+        new Vector3(0.5f, 0, 0.5f),
+        new Vector3(-0.5f, 0, 0.5f),
+        new Vector3(-0.5f, 0, -0.5f),
+        new Vector3(0.5f, 0, -0.5f)
         ]
     ,
         [
-        0,
         1,
+        0,
         2,
         0,
         3,
@@ -46,15 +42,15 @@ public class Mesh
 
     public readonly static Mesh Cube = new(
         [
-        new Vector3(1, -1, 1),
-        new Vector3(-1, -1, 1),
-        new Vector3(-1, -1, -1),
-        new Vector3(1, -1, -1),
+        new Vector3(0.5f, -0.5f, 0.5f),
+        new Vector3(-0.5f, -0.5f, 0.5f),
+        new Vector3(-0.5f, -0.5f, -0.5f),
+        new Vector3(0.5f, -0.5f, -0.5f),
 
-        new Vector3(1, 1, 1),
-        new Vector3(-1, 1, 1),
-        new Vector3(-1, 1, -1),
-        new Vector3(1, 1, -1)
+        new Vector3(0.5f, 0.5f, 0.5f),
+        new Vector3(-0.5f, 0.5f, 0.5f),
+        new Vector3(-0.5f, 0.5f, -0.5f),
+        new Vector3(0.5f, 0.5f, -0.5f)
         ]
     ,
         [
@@ -73,8 +69,8 @@ public class Mesh
         3, 7, 4,
         0, 3, 4,
 
-        4, 5, 6,
-        7, 4, 6
+        5, 4, 6,
+        4, 7, 6
         ]
     );
 }
