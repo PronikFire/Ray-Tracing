@@ -44,10 +44,14 @@ public class Camera(float fov, Size resolution, Scene scene) : Object
                 continue;
 
             Vector3 localLightPos = light.transform.position - result.point;
-            float brightness = light.Intensity / localLightPos.Length();
 
-            if (brightness < 1e-5)
+            if (localLightPos.Length() > light.Range)
                 continue;
+
+            if (Vector3.Dot(result.normal, localLightPos) < 0)
+                continue;
+            
+            float brightness = light.Intensity / localLightPos.Length();
 
             if (scene.Raycast(result.point, Vector3.Normalize(localLightPos), out var rayToLightResult, [result.meshRender]))
                 continue;

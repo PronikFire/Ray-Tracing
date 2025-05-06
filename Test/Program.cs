@@ -17,6 +17,7 @@ public static partial class Program
     private static readonly Camera camera = new(60, new(Resolution.Width, Resolution.Height), scene);
     private static readonly Quaternion rotationDelta = Quaternion.CreateFromAxisAngle(Vector3.UnitY, 1f * (MathF.PI / 180));
     private static readonly Light light = new();
+    private static readonly Light light2 = new();
     private static readonly uint[] pixelBuffer = new uint[Resolution.Width * Resolution.Height];
 
     private static IntPtr hWnd;
@@ -83,8 +84,13 @@ public static partial class Program
         camera.transform.rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, 10 * MathF.PI / 180);
         //camera.transform.Rotation = Quaternion.CreateFromRotationMatrix(Matrix4x4.CreateLookAt(camera.transform.Position, Vector3.Zero, camera.transform.Up));
 
+        light2.transform.position = new Vector3(3, 3, 3);
+        light2.Intensity = 3;
+        light2.color = Color.IndianRed;
+        scene.Objects.Add(light2);
+
         light.transform.position = new Vector3(3, 3, -3);
-        light.Intensity = 5f;
+        light.Intensity = 2f;
         //light.Color = Color.Red;
         scene.Objects.Add(light);
 
