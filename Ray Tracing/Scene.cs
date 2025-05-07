@@ -8,7 +8,9 @@ namespace Ray_Tracing;
 
 public class Scene
 {
-    public List<Object> Objects = [];
+    public Object[] Objects => [..objects];
+
+    private List<Object> objects = [];
 
     public bool Raycast(Vector3 origin, Vector3 direction, out RaycastResult raycastResult, MeshRender[]? excludedObjects = null)
     {
@@ -37,6 +39,18 @@ public class Scene
         }
 
         return hasResult;
+    }
+
+    public void AddObject(Object obj)
+    {
+        obj.Scene = this;
+        objects.Add(obj);
+    }
+
+    public void Remove(Object obj)
+    {
+        objects.Remove(obj);
+        obj.Scene = null;
     }
 
     public struct RaycastResult

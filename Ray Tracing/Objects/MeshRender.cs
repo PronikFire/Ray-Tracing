@@ -2,15 +2,18 @@
 
 namespace Ray_Tracing.Objects;
 
-public class MeshRender(Mesh mesh) : Object
+public class MeshRender : Object
 {
     public Material material = new();
 
-    public Mesh mesh = mesh;
+    public Mesh? mesh = null;
 
     public bool Intersection(Vector3 origin, Vector3 direction, out IntersectionResult result)
     {
         result = default;
+
+        if (mesh is null)
+            return false;
 
         direction = Vector3.Normalize(direction);
 

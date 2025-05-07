@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Drawing;
 using System.ComponentModel;
 using System.Drawing.Imaging;
+using Ray_Tracing.Materials;
 
 namespace Test;
 
@@ -14,7 +15,7 @@ public static partial class Program
 {
     private static readonly Size Resolution = new(600, 600);
     private static readonly Scene scene = new();
-    private static readonly Camera camera = new(60, new(Resolution.Width, Resolution.Height), scene);
+    private static readonly Camera camera = new();
     private static readonly Quaternion rotationDelta = Quaternion.CreateFromAxisAngle(Vector3.UnitY, 1f * (MathF.PI / 180));
     private static readonly Light light = new();
     private static readonly Light light2 = new();
@@ -80,28 +81,31 @@ public static partial class Program
         UpdateWindow(hWnd);
         #endregion
 
+        camera.resolution = Resolution;
         camera.transform.position = new Vector3(0, 2, -10);
         camera.transform.rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, 10 * MathF.PI / 180);
-        //camera.transform.Rotation = Quaternion.CreateFromRotationMatrix(Matrix4x4.CreateLookAt(camera.transform.Position, Vector3.Zero, camera.transform.Up));
+        scene.AddObject(camera);
 
         light2.transform.position = new Vector3(3, 3, 3);
         light2.Intensity = 3;
         light2.color = Color.IndianRed;
-        scene.Objects.Add(light2);
+        scene.AddObject(light2);
 
         light.transform.position = new Vector3(3, 3, -3);
         light.Intensity = 2f;
-        //light.Color = Color.Red;
-        scene.Objects.Add(light);
+        scene.AddObject(light);
 
-        MeshRender cube = new(Mesh.Cube);
+        MeshRender cube = new();
         cube.material.color = Color.RebeccaPurple;
-        scene.Objects.Add(cube);
+        cube.mesh = Mesh.Cube;
+        scene.AddObject(cube);
 
-        MeshRender plane = new(Mesh.Plane);
+        MeshRender plane = new();
         plane.transform.position = new Vector3(0, -0.5f, 0);
         plane.transform.scale *= 5;
-        scene.Objects.Add(plane);
+        plane.mesh = Mesh.Plane;
+        plane.material = new MetallicMaterial() { Roughness = 0.1f, Reflectivity = 0.8f };
+        scene.AddObject(plane);
 
         MSG msg = new();
 
@@ -113,7 +117,8 @@ public static partial class Program
             //DispatchMessageW(ref msg);
 
             Parallel.For(0, Resolution.Height - 1, 
-                y => Parallel.For(0, Resolution.Width - 1, x => pixelBuffer[y * Resolution.Width + x] = (uint)camera.GetPixel(x, y).ToArgb()));
+                y => Parallel.For(0, Resolution.Width - 1, 
+                x => pixelBuffer[y * Resolution.Width + x] = (uint)camera.GetPixel(x, y).ToArgb()));
 
             /*for (int y = 0; y < Resolution.Height; y++)
                 SetPixelsRow(y);*/
@@ -137,11 +142,6 @@ public static partial class Program
         }
 
         UnregisterClassW("PixelWindowClass", phModule);
-    }
-
-    private static void SetPixelsRow(int y)
-    {
-        ;
     }
 
     #region WinAPI

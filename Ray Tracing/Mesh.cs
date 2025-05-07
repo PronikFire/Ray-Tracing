@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Ray_Tracing.Objects;
+using System;
+using System.Drawing;
 using System.Numerics;
 
 namespace Ray_Tracing;
