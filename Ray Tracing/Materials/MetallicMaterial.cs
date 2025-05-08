@@ -26,13 +26,12 @@ public class MetallicMaterial : Material
     {
         Color baseColor = base.OnCalculate(point, ray, normal, meshRender, scene, raysLeft);
 
-        Vector3 reflectedDirection = Vector3.Normalize(Vector3.Reflect(Vector3.Normalize(ray), normal));
+        Vector3 reflectedDirection = Vector3.Reflect(Vector3.Normalize(ray), normal);
 
         if (roughness > 0)
         {
             Quaternion rayRotation = Quaternion.CreateFromYawPitchRoll((float)((Random.Shared.NextDouble() - 0.5) * 2 * roughness * 90 * MathF.PI / 180),
-                (float)((Random.Shared.NextDouble() - 0.5) * 2 * roughness * 90 * MathF.PI / 180),
-                (float)((Random.Shared.NextDouble() - 0.5) * 2 * roughness * 90 * MathF.PI / 180));
+                (float)((Random.Shared.NextDouble() - 0.5) * 2 * roughness * 90 * MathF.PI / 180), 0);
             reflectedDirection = Vector3.Transform(reflectedDirection, rayRotation);
             if (Vector3.Dot(reflectedDirection, normal) <= 0)
                 return baseColor;

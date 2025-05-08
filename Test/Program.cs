@@ -8,6 +8,7 @@ using System.Drawing;
 using System.ComponentModel;
 using System.Drawing.Imaging;
 using Ray_Tracing.Materials;
+using System.Diagnostics;
 
 namespace Test;
 
@@ -104,8 +105,26 @@ public static partial class Program
         plane.transform.position = new Vector3(0, -0.5f, 0);
         plane.transform.scale *= 5;
         plane.mesh = Mesh.Plane;
-        plane.material = new MetallicMaterial() { Roughness = 0.1f, Reflectivity = 0.8f };
+        plane.material = new MetallicMaterial() { Roughness = 0.05f, Reflectivity = 0.8f };
         scene.AddObject(plane);
+
+        MeshRender cube2 = new();
+        cube2.transform.scale = new Vector3(0.5f);
+        cube2.transform.position = new Vector3(1, 0.5f, 0.5f);
+        cube2.material.color = Color.Green;
+        cube2.mesh = Mesh.Cube;
+        scene.AddObject(cube2);
+
+        //MeshRender sphere = new();
+        //sphere.transform.position = new Vector3(-1, 0.5f, 0.5f);
+        //sphere.material.color = Color.Aqua;
+        //sphere.mesh = Mesh.CreateSphere(8, 8);
+        //scene.AddObject(sphere);
+#if DEBUG
+        Stopwatch sw = new Stopwatch();
+#endif
+
+        ParallelOptions pO = new() { MaxDegreeOfParallelism = Environment.ProcessorCount };
 
         MSG msg = new();
 
@@ -113,12 +132,19 @@ public static partial class Program
         //I need to figure it out but I'm going to sleep😴💤💤💤💤
         while (GetMessageW(ref msg, IntPtr.Zero, 0, 0))
         {
+#if DEBUG
+            sw.Restart();
+#endif
             //TranslateMessage(ref msg);
             //DispatchMessageW(ref msg);
 
-            Parallel.For(0, Resolution.Height - 1, 
-                y => Parallel.For(0, Resolution.Width - 1, 
-                x => pixelBuffer[y * Resolution.Width + x] = (uint)camera.GetPixel(x, y).ToArgb()));
+            Parallel.For(0, Resolution.Height, pO, y =>
+            {
+                for (int x = 0; x < Resolution.Width; x++)
+                {
+                    pixelBuffer[y * Resolution.Width + x] = (uint)camera.GetPixel(x, y).ToArgb();
+                }
+            });
 
             /*for (int y = 0; y < Resolution.Height; y++)
                 SetPixelsRow(y);*/
@@ -131,7 +157,7 @@ public static partial class Program
                     using var bitmap = new Bitmap(Resolution.Width, Resolution.Height, Resolution.Width * 4,
                         PixelFormat.Format32bppRgb, (IntPtr)ptr);
                     using var graphics = Graphics.FromHwnd(hWnd);
-                    graphics.DrawImage(bitmap, 0, 0);
+                    graphics.DrawImageUnscaled(bitmap, 0, 0);
 #pragma warning restore CA1416
                 }
             }
@@ -139,6 +165,11 @@ public static partial class Program
             //light.transform.Position = Vector3.Transform(light.transform.Position, rotationDelta);
             camera.transform.rotation = Quaternion.Concatenate(camera.transform.rotation, rotationDelta);
             camera.transform.position = Vector3.Transform(camera.transform.position, rotationDelta);
+
+#if DEBUG
+            sw.Stop();
+            Debug.WriteLine($"Frame time: {sw.ElapsedMilliseconds} ms");
+#endif
         }
 
         UnregisterClassW("PixelWindowClass", phModule);

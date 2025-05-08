@@ -50,11 +50,12 @@ public class MeshRender : Object
             if (t < 0)
                 continue;
 
-            if (hasResult && Vector3.Distance(origin, result.point) < t)
+            if (hasResult && result.distance < t)
                 continue;
 
             result.point = origin + t * direction;
             result.normal = Vector3.Normalize(Vector3.Cross(e1, e2));
+            result.distance = t;
             hasResult = true;
         }
 
@@ -65,5 +66,6 @@ public class MeshRender : Object
     {
         public Vector3 point;
         public Vector3 normal;
+        public float distance;
     }
 }
